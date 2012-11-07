@@ -1101,9 +1101,10 @@
                     // so we need to move widget down to a position that dont
                     // overlaps player
                     var y = (to_row + this.player_grid_data.size_y) - wgd.row;
-
-                    this.move_widget_down($w, y);
-                    this.set_placeholder(to_col, to_row);
+                    if (y > 0) {
+                        this.move_widget_down($w, y);
+                        this.set_placeholder(to_col, to_row);
+                    }
                 }
             }
         }, this));
