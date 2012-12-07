@@ -58,6 +58,9 @@
     transition: all 0s !important;
 }
 
+
+.gridster ul {list-style: none;}
+.gridster ul li {border:1px solid #ccc;}
 /* Uncomment this if you set helper : "clone" in draggable options */
 /*.gridster .player {
   opacity:0;
