@@ -1,0 +1,56 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title></title>
+	<script type="text/javascript" src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
+	<script type="text/javascript" src="dist/jquery.gridster.js"></script>
+	<link rel="stylesheet" href="dist/jquery.gridster.css">
+	<script type="text/javascript">
+	$(function(){ //DOM Ready
+
+    var t = $(".gridster ul").gridster({
+        widget_margins: [10, 10],
+        widget_base_dimensions: [140, 140]
+    });
+    jQuery("#seri").click(function(){
+	    
+	    var gridster = $(".gridster ul").gridster().data('gridster');
+	    var obj = JSON.stringify(gridster.serialize(), null, 2);
+	    console.log(obj);
+    });
+    jQuery("#add").click(function(){
+	    
+	    var gridster = $(".gridster ul").gridster().data('gridster');
+	    gridster.add_widget('<li class="new">The HTML of the widget...</li>',jQuery("#sizex").val(),jQuery("#sizey").val(),jQuery("#col").val(),jQuery("#row").val());
+    });
+});
+</script>
+</head>
+<body>
+
+
+<div class="gridster">
+    <ul>
+        <li data-row="1" data-col="3" data-sizex="1" data-sizey="1">hey</li>
+        <li data-row="2" data-col="3" data-sizex="1" data-sizey="1">fey</li>
+        <li data-row="3" data-col="3" data-sizex="1" data-sizey="1">sey</li>
+
+        <li data-row="1" data-col="1" data-sizex="2" data-sizey="1"></li>
+        <li data-row="2" data-col="1" data-sizex="2" data-sizey="2"></li>
+
+    </ul>
+</div>
+
+
+
+<input type="button" id="seri" value="Spara">
+
+<input type="text" id="sizex">
+<input type="text" id="sizey">
+<input type="text" id="col">
+<input type="text" id="row">
+<input type="button" id="add" value="add">
+</body>
+</html>
