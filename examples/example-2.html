@@ -1,56 +1,106 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<!DOCTYPE html>
+<html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<title></title>
-	<script type="text/javascript" src="http://code.jquery.com/jquery-1.8.3.min.js"></script>
-	<script type="text/javascript" src="dist/jquery.gridster.js"></script>
-	<link rel="stylesheet" href="dist/jquery.gridster.css">
-	<script type="text/javascript">
-	$(function(){ //DOM Ready
+	<title>Example #2</title>
+    <link rel="stylesheet" type="text/css" href="../src/jquery.gridster.css">
+	<link rel="stylesheet" href="assets/css/style.css">
 
+	<script type="text/javascript" src="../libs/jquery/jquery.js"></script>
+
+	<script src="../src/jquery.coords.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../src/jquery.collision.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../src/jquery.draggable.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../src/utils.js" type="text/javascript" charset="utf-8"></script>
+	<script src="../src/jquery.gridster.js" type="text/javascript" charset="utf-8"></script>
+
+	<script type="text/javascript">
+$(function() { // DOM Ready
     var t = $(".gridster ul").gridster({
         widget_margins: [10, 10],
         widget_base_dimensions: [140, 140]
     });
-    jQuery("#seri").click(function(){
-	    
+    
+    jQuery("#seri").click(function() {
 	    var gridster = $(".gridster ul").gridster().data('gridster');
 	    var obj = JSON.stringify(gridster.serialize(), null, 2);
 	    console.log(obj);
+	    $('#json-output').html(obj);
     });
-    jQuery("#add").click(function(){
-	    
+    
+    jQuery("#add").click(function() {
 	    var gridster = $(".gridster ul").gridster().data('gridster');
-	    gridster.add_widget('<li class="new">The HTML of the widget...</li>',jQuery("#sizex").val(),jQuery("#sizey").val(),jQuery("#col").val(),jQuery("#row").val());
+	    gridster.add_widget('<li class="new">The HTML of the widget...</li>',
+	    	jQuery("#sizex").val(),
+	    	jQuery("#sizey").val(),
+	    	jQuery("#col").val(),
+	    	jQuery("#row").val()
+	    );
     });
 });
-</script>
+	</script>
+	<style>
+div.wrapper
+{
+	border-top: solid 1px #999;
+	padding: 12px 3px;
+}	
+form.wrapper
+{
+	border: solid 1px #999;
+	padding: 12px 2em;
+	margin: 12px;
+
+	float: right;
+	width: 20em;
+}	
+input[type="button"]
+{
+	margin: 6px 12px;
+	padding: 6px 24px;
+}
+h2
+{
+	margin-top: 1em;
+}
+label
+{
+	display: block;
+}
+	</style>
 </head>
 <body>
+	<div class="gridster">
+	    <ul>
+	        <li data-row="1" data-col="3" data-sizex="1" data-sizey="1">hey</li>
+	        <li data-row="2" data-col="3" data-sizex="1" data-sizey="1">fey</li>
+	        <li data-row="3" data-col="3" data-sizex="1" data-sizey="1">sey</li>
+
+	        <li data-row="1" data-col="1" data-sizex="2" data-sizey="1"></li>
+	        <li data-row="2" data-col="1" data-sizex="2" data-sizey="2"></li>
+	    </ul>
+	</div>
 
 
-<div class="gridster">
-    <ul>
-        <li data-row="1" data-col="3" data-sizex="1" data-sizey="1">hey</li>
-        <li data-row="2" data-col="3" data-sizex="1" data-sizey="1">fey</li>
-        <li data-row="3" data-col="3" data-sizex="1" data-sizey="1">sey</li>
+    <form class="wrapper">
+    	<h2>Add widget</h2>
 
-        <li data-row="1" data-col="1" data-sizex="2" data-sizey="1"></li>
-        <li data-row="2" data-col="1" data-sizex="2" data-sizey="2"></li>
+    	<label for="sizex">width</label>
+		<input type="text" id="sizex" name="sizex">
+    	<label for="sizey">height</label>
+		<input type="text" id="sizey" name="sizey">
+    	<label for="col">number of columns</label>
+		<input type="text" id="col" name="col">
+    	<label for="row">number of rows</label>
+		<input type="text" id="row" name="row">
+		<input type="button" id="add" value="add">
+	</form>
 
-    </ul>
-</div>
+    <div class="wrapper">
+		<input type="button" id="seri" value="Save / Serialize">
 
-
-
-<input type="button" id="seri" value="Spara">
-
-<input type="text" id="sizex">
-<input type="text" id="sizey">
-<input type="text" id="col">
-<input type="text" id="row">
-<input type="button" id="add" value="add">
+		<h2>JSON output of save action:</h2>
+		<pre id="json-output">...</pre>
+	</div>
 </body>
 </html>
