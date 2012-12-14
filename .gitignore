@@ -1,3 +1,9 @@
+# Editor backup files
+*~
+*.bak
+
+# NodeJS et al
 node_modules/
 gh-pages/
 demo/
+
