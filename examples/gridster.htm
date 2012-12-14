@@ -1,0 +1,100 @@
+<!doctype html>
+<html class="no-js" lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+	<title>gridster.js</title>
+
+	<meta name="description" content="gridster.js, a drag-and-drop multi-column jQuery grid plugin">
+	<meta name="author" content="duscksboard">
+
+    <link rel="stylesheet" type="text/css" href="../src/jquery.gridster.css">
+
+	<link rel="stylesheet" href="assets/css/style.css">
+    <link href='http://fonts.googleapis.com/css?family=Rancho' rel='stylesheet' type='text/css'>
+</head>
+<body>
+
+<header role="header">
+    <div class="wrapper">
+        <a href="http://gridster.net" class="logo">gridster.js</a>
+        <h1 class="claim">put a grid in your life</h1>
+    </div>
+</header>
+
+
+<div role="main">
+
+    <section id="intro" class="wrapper m_txt">
+        <div>
+            <h2 class="heading-xl">Plug in to the grid</h2>
+            <p>This is it, the mythical drag-and-drop multi-column grid has arrived. Gridster is a jQuery plugin that allows building intuitive draggable layouts from elements spanning multiple columns. You can even dynamically add and remove elements from the grid. It is on par with sliced bread, or possibly better. MIT licensed. Suitable for children of all ages. Made by <a href="http://ducksboard.com/">Ducksboard</a>.</p>
+            <p>It's so sweet we like to call it drag-and-drool.</p>
+        </div>
+    </section>
+
+
+    <section class="demo">
+
+        <div class="gridster">
+          <ul>
+            <li data-row="1" data-col="1" data-sizex="2" data-sizey="1"></li>
+            <li data-row="3" data-col="1" data-sizex="1" data-sizey="1"></li>
+
+            <li data-row="3" data-col="2" data-sizex="2" data-sizey="1"></li>
+            <li data-row="1" data-col="2" data-sizex="2" data-sizey="2"></li>
+
+            <li class="try" data-row="1" data-col="4" data-sizex="1" data-sizey="1"></li>
+            <li data-row="2" data-col="4" data-sizex="2" data-sizey="1"></li>
+            <li data-row="3" data-col="4" data-sizex="1" data-sizey="1"></li>
+
+            <li data-row="1" data-col="5" data-sizex="1" data-sizey="1"></li>
+            <li data-row="3" data-col="5" data-sizex="1" data-sizey="1"></li>
+
+            <li data-row="1" data-col="6" data-sizex="1" data-sizey="1"></li>
+            <li data-row="2" data-col="6" data-sizex="1" data-sizey="2"></li>
+          </ul>
+        </div>
+
+        <div class="gridster"></div>
+
+    </section>
+
+</div>
+
+<a href="https://github.com/ducksboard/gridster.js"><img style="position: absolute; top: 0; right: 0; border: 0;" src="assets/img/forkme_right_darkblue_121621.png" alt="Fork me on GitHub"></a>
+
+<footer role="footer">
+    <div class="wrapper">
+        <a href="http://gridster.net" class="logo-small">gridster.js</a>
+        <p class="claim">put a grid in your life</p>
+    </div>
+    <p>
+        A project by: <a href="http://ducksboard.com" class="ducksboard-logo">Ducksboard</a>
+    </p>
+</footer>
+
+<script type="text/javascript" src="../libs/jquery/jquery.js"></script>
+<script src="../src/jquery.coords.js" type="text/javascript" charset="utf-8"></script>
+<script src="../src/jquery.collision.js" type="text/javascript" charset="utf-8"></script>
+<script src="../src/jquery.draggable.js" type="text/javascript" charset="utf-8"></script>
+<script src="../src/utils.js" type="text/javascript" charset="utf-8"></script>
+<script src="../src/jquery.gridster.js" type="text/javascript" charset="utf-8"></script>
+
+<script type="text/javascript">
+  var gridster;
+
+  $(function(){
+
+    gridster = $(".gridster > ul").gridster({
+        widget_margins: [10, 10],
+        widget_base_dimensions: [140, 140],
+        min_cols: 6
+    }).data('gridster');
+
+  });
+</script>
+
+</body>
+</html>
