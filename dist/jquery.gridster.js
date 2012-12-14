@@ -837,6 +837,18 @@
         return this;
     };
 
+    /**
+    * Toggle dragging.
+    *
+    * @method toggle
+    * @return {Class} Returns the instance of the Gridster Class.
+    */
+
+    fn.toggle = function() {
+        (this.drag_api.disabled) ? this.drag_api.enable() : this.drag_api.disable();
+        return this;
+    };
+
 
     /**
     * Add a new widget to the grid.
@@ -2626,6 +2638,7 @@
         this.remove_from_gridmap(widget_grid_data);
         widget_grid_data.row = row;
         this.add_to_gridmap(widget_grid_data);
+        $widget.css('top', ''); //fix conflict with jquery-resizable
         $widget.attr('data-row', row);
         this.$changed = this.$changed.add($widget);
 
@@ -2677,6 +2690,7 @@
                 this.remove_from_gridmap(widget_grid_data);
                 widget_grid_data.row = next_row;
                 this.add_to_gridmap(widget_grid_data);
+                $widget.css('top', ''); //fix conflict with jquery-resizable
                 $widget.attr('data-row', widget_grid_data.row);
                 this.$changed = this.$changed.add($widget);
 
@@ -2730,6 +2744,7 @@
 
             widget_grid_data.row = next_row;
             this.update_widget_position(widget_grid_data, $widget);
+            $widget.css('top', ''); //fix conflict with jquery-resizable
             $widget.attr('data-row', widget_grid_data.row);
             this.$changed = this.$changed.add($widget);
 

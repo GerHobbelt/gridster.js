@@ -3,7 +3,12 @@
 * Copyright (c) 2012 ducksboard; Licensed MIT */
 
 .gridster {
-    position:relative;
+    position: relative;
+}
+
+.gridster > ul {
+    list-style: none;
+    padding: 0;
 }
 
 .gridster > * {
@@ -58,6 +63,9 @@
     transition: all 0s !important;
 }
 
+
+.gridster ul {list-style: none;}
+.gridster ul li {border:1px solid #ccc;}
 /* Uncomment this if you set helper : "clone" in draggable options */
 /*.gridster .player {
   opacity:0;
