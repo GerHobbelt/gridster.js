@@ -1,4 +1,4 @@
-/*! gridster.js - v0.1.0 - 2012-10-20
+/*! gridster.js - v0.1.0 - 2012-12-16
 * http://gridster.net/
 * Copyright (c) 2012 ducksboard; Licensed MIT */
 
@@ -274,7 +274,7 @@
 
         if (self.options.on_overlap_stop || self.options.on_overlap_start) {
             this.manage_colliders_start_stop(colliders_coords,
-                self.options.on_overlap_stop, self.options.on_overlap_start);
+                self.options.on_overlap_start, self.options.on_overlap_stop);
         }
 
         this.last_colliders_coords = colliders_coords;
@@ -799,6 +799,7 @@
         this.generate_grid_and_stylesheet();
         this.get_widgets_from_DOM();
         this.set_dom_grid_height();
+        this.set_dom_grid_width();
         this.$wrapper.addClass('ready');
         this.draggable();
 
@@ -831,18 +832,6 @@
         return this;
     };
 
-    /**
-    * Toggle dragging.
-    *
-    * @method toggle
-    * @return {Class} Returns the instance of the Gridster Class.
-    */
-
-    fn.toggle = function() {
-        (this.drag_api.disabled) ? this.drag_api.enable() : this.drag_api.disable();
-        return this;
-    };
-
 
     /**
     * Add a new widget to the grid.
@@ -858,10 +847,13 @@
     *  the widget that was just created.
     */
     fn.add_widget = function(html, size_x, size_y, col, row) {
-        var pos;
+        var pos,
+            $w;
+
         size_x || (size_x = 1);
         size_y || (size_y = 1);
 
+        //if col and row weren't passed, render in the next available position
         if (!col & !row) {
             pos = this.next_position(size_x, size_y);
         }else{
@@ -873,12 +865,14 @@
             this.empty_cells(col, row, size_x, size_y);
         }
 
-        var $w = $(html).attr({
-                'data-col': pos.col,
-                'data-row': pos.row,
-                'data-sizex' : size_x,
-                'data-sizey' : size_y
-            }).addClass('gs_w').appendTo(this.$el).hide();
+        $w = ( html.jquery ) ? html : $( html );
+
+        $w.attr({
+            'data-col': pos.col,
+            'data-row': pos.row,
+            'data-sizex' : size_x,
+            'data-sizey' : size_y
+        }).addClass('gs_w').appendTo(this.$el).hide();
 
         this.$widgets = this.$widgets.add($w);
 
@@ -888,6 +882,7 @@
         //this.add_faux_cols(pos.size_x);
 
         this.set_dom_grid_height();
+        this.set_dom_grid_width();
 
         return $w.fadeIn();
     };
@@ -1056,6 +1051,7 @@
         }, this));
 
         this.set_dom_grid_height();
+        this.set_dom_grid_width();
 
         return this;
     };
@@ -1088,6 +1084,7 @@
         }, this));
 
         this.set_dom_grid_height();
+        this.set_dom_grid_width();
 
         return this;
     };
@@ -1173,6 +1170,7 @@
             }
 
             this.set_dom_grid_height();
+            this.set_dom_grid_width();
 
             if (callback) {
                 callback.call(this, el);
@@ -1521,6 +1519,7 @@
         this.cells_occupied_by_player = {};
 
         this.set_dom_grid_height();
+        this.set_dom_grid_width();
     };
 
 
@@ -1809,9 +1808,10 @@
                     // so we need to move widget down to a position that dont
                     // overlaps player
                     var y = (to_row + this.player_grid_data.size_y) - wgd.row;
-
-                    this.move_widget_down($w, y);
-                    this.set_placeholder(to_col, to_row);
+                    if (y > 0) {
+                        this.move_widget_down($w, y);
+                        this.set_placeholder(to_col, to_row);
+                    }
                 }
             }
         }, this));
@@ -2936,6 +2936,17 @@
         }
 
         return $widgets;
+    };
+
+
+    /** Set the current width of the parent grid
+    *
+    *   @method set_dom_grid_width
+    *   @return {Object} Returns the instance of the Gridster class.
+    */
+    fn.set_dom_grid_width = function() {
+      this.$el.css("width", (this.gridmap.length -1) * this.min_widget_width);
+      return this;
     };
 
 

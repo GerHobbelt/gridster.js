@@ -1,14 +1,9 @@
-/*! gridster.js - v0.1.0 - 2012-10-20
+/*! gridster.js - v0.1.0 - 2012-12-16
 * http://gridster.net/
 * Copyright (c) 2012 ducksboard; Licensed MIT */
 
 .gridster {
-    position: relative;
-}
-
-.gridster > ul {
-    list-style: none;
-    padding: 0;
+    position:relative;
 }
 
 .gridster > * {
@@ -63,9 +58,6 @@
     transition: all 0s !important;
 }
 
-
-.gridster ul {list-style: none;}
-.gridster ul li {border:1px solid #ccc;}
 /* Uncomment this if you set helper : "clone" in draggable options */
 /*.gridster .player {
   opacity:0;
