@@ -21,13 +21,29 @@
         // stop : function(e){}
     };
 
+    /*
+    It is entirely wrong to assume that a system which offers tocuh events does not also 
+    offer mouse events (latest Chrome / Chromium for example; Windows 8 with touchscreen
+    is another) so the code hooks both types when they are available.
+
+    We also always use namespaced events.
+    */
     var $window = $(window);
-    var isTouch = !!('ontouchstart' in window);
-    var pointer_events = {
-        start: isTouch ? 'touchstart' : 'mousedown.draggable',
-        move: isTouch ? 'touchmove' : 'mousemove.draggable',
-        end: isTouch ? 'touchend' : 'mouseup.draggable'
-    };
+    var pointer_events = [];
+    if ('ontouchstart' in window) {
+        pointer_events.push({
+            start: 'touchstart.draggable',
+            move: 'touchmove.draggable',
+            end: 'touchend.draggable'
+        });
+    }
+    if ('onmousemove' in window) {
+        pointer_events.push({
+            start: 'mousedown.draggable',
+            move: 'mousemove.draggable',
+            end: 'mouseup.draggable'
+        });
+    }
 
     /**
     * Basic drag implementation for DOM elements inside a container.
@@ -78,19 +94,25 @@
     };
 
     fn.events = function() {
+        var self = this;
         this.$container.on('selectstart', $.proxy(this.on_select_start, this));
 
-        this.$container.on(pointer_events.start, this.options.items, $.proxy(
-            this.drag_handler, this));
+        var d;
+        for (var i = 0; pointer_events[i]; i++) {
+            d = pointer_events[i];
 
-        this.$body.on(pointer_events.end, $.proxy(function(e) {
-            this.is_dragging = false;
-            if (this.disabled) { return; }
-            this.$body.off(pointer_events.move);
-            if (this.drag_start) {
-                this.on_dragstop(e);
-            }
-        }, this));
+            self.$container.on(d.start, self.options.items, $.proxy(
+                self.drag_handler, self));
+
+            self.$body.on(d.end, function(e) {
+                self.is_dragging = false;
+                if (self.disabled) { return; }
+                self.$body.off(d.move);
+                if (self.drag_start) {
+                    self.on_dragstop(e);
+                }
+            });
+        }
     };
 
     fn.get_actual_pos = function($el) {
@@ -100,8 +122,8 @@
 
 
     fn.get_mouse_pos = function(e) {
-        if (isTouch) {
-            var oe = e.originalEvent;
+        var oe = e.originalEvent;
+        if (oe && (oe.touches || oe.changedTouches)) {
             e = oe.touches.length ? oe.touches[0] : oe.changedTouches[0];
         }
 
@@ -181,7 +203,7 @@
 
     fn.drag_handler = function(e) {
         var node = e.target.nodeName;
-        if (this.disabled || e.which !== 1 && !isTouch) {
+        if (this.disabled || e.which !== 1 && e.type == "mousedown") {
             return;
         }
 
@@ -197,30 +219,35 @@
         this.mouse_init_pos = this.get_mouse_pos(e);
         this.offsetY = this.mouse_init_pos.top - this.el_init_pos.top;
 
-        this.$body.on(pointer_events.move, function(mme){
-            var mouse_actual_pos = self.get_mouse_pos(mme);
-            var diff_x = Math.abs(
-                mouse_actual_pos.left - self.mouse_init_pos.left);
-            var diff_y = Math.abs(
-                mouse_actual_pos.top - self.mouse_init_pos.top);
-            if (!(diff_x > self.options.distance ||
-                diff_y > self.options.distance)
-            ) {
+        var d;
+        for (var i = 0; pointer_events[i]; i++) {
+            d = pointer_events[i];
+
+            self.$body.on(d.move, function(mme) {
+                var mouse_actual_pos = self.get_mouse_pos(mme);
+                var diff_x = Math.abs(
+                    mouse_actual_pos.left - self.mouse_init_pos.left);
+                var diff_y = Math.abs(
+                    mouse_actual_pos.top - self.mouse_init_pos.top);
+                if (!(diff_x > self.options.distance ||
+                    diff_y > self.options.distance)
+                ) {
+                    return false;
+                }
+
+                if (first) {
+                    first = false;
+                    self.on_dragstart.call(self, mme);
+                    return false;
+                }
+
+                if (self.is_dragging === true) {
+                    self.on_dragmove.call(self, mme);
+                }
+
                 return false;
-            }
-
-            if (first) {
-                first = false;
-                self.on_dragstart.call(self, mme);
-                return false;
-            }
-
-            if (self.is_dragging === true) {
-                self.on_dragmove.call(self, mme);
-            }
-
-            return false;
-        });
+            });
+        }
 
         return false;
     };
