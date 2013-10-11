@@ -15,35 +15,20 @@
         offset_left: 0,
         autoscroll: true,
         ignore_dragging: ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'],
-        handle: null
-        // ,drag: function(e){},
+        handle: null,
+        container_width: 0  // 0 == auto
+        // drag: function(e){},
         // start : function(e, ui){},
         // stop : function(e){}
     };
 
-    /*
-    It is entirely wrong to assume that a system which offers tocuh events does not also 
-    offer mouse events (latest Chrome / Chromium for example; Windows 8 with touchscreen
-    is another) so the code hooks both types when they are available.
-
-    We also always use namespaced events.
-    */
     var $window = $(window);
-    var pointer_events = [];
-    if ('ontouchstart' in window) {
-        pointer_events.push({
-            start: 'touchstart.draggable',
-            move: 'touchmove.draggable',
-            end: 'touchend.draggable'
-        });
-    }
-    if ('onmousemove' in window) {
-        pointer_events.push({
-            start: 'mousedown.draggable',
-            move: 'mousemove.draggable',
-            end: 'mouseup.draggable'
-        });
-    }
+    var isTouch = !!('ontouchstart' in window);
+    var pointer_events = {
+        start: isTouch ? 'touchstart.gridster-draggable' : 'mousedown.gridster-draggable',
+        move: isTouch ? 'touchmove.gridster-draggable' : 'mousemove.gridster-draggable',
+        end: isTouch ? 'touchend.gridster-draggable' : 'mouseup.gridster-draggable'
+    };
 
     /**
     * Basic drag implementation for DOM elements inside a container.
@@ -89,30 +74,25 @@
         this.disabled = false;
         this.events();
 
-        $(window).bind('resize',
+        $(window).bind('resize.gridster-draggable',
             throttle($.proxy(this.calculate_positions, this), 200));
     };
 
     fn.events = function() {
-        var self = this;
-        this.$container.on('selectstart', $.proxy(this.on_select_start, this));
+        this.$container.on('selectstart.gridster-draggable',
+            $.proxy(this.on_select_start, this));
 
-        var d;
-        for (var i = 0; pointer_events[i]; i++) {
-            d = pointer_events[i];
+        this.$container.on(pointer_events.start, this.options.items,
+            $.proxy(this.drag_handler, this));
 
-            self.$container.on(d.start, self.options.items, $.proxy(
-                self.drag_handler, self));
-
-            self.$body.on(d.end, function(e) {
-                self.is_dragging = false;
-                if (self.disabled) { return; }
-                self.$body.off(d.move);
-                if (self.drag_start) {
-                    self.on_dragstop(e);
-                }
-            });
-        }
+        this.$body.on(pointer_events.end, $.proxy(function(e) {
+            this.is_dragging = false;
+            if (this.disabled) { return; }
+            this.$body.off(pointer_events.move);
+            if (this.drag_start) {
+                this.on_dragstop(e);
+            }
+        }, this));
     };
 
     fn.get_actual_pos = function($el) {
@@ -122,8 +102,8 @@
 
 
     fn.get_mouse_pos = function(e) {
-        var oe = e.originalEvent;
-        if (oe && (oe.touches || oe.changedTouches)) {
+        if (isTouch) {
+            var oe = e.originalEvent;
             e = oe.touches.length ? oe.touches[0] : oe.changedTouches[0];
         }
 
@@ -203,7 +183,7 @@
 
     fn.drag_handler = function(e) {
         var node = e.target.nodeName;
-        if (this.disabled || e.which !== 1 && e.type == "mousedown") {
+        if (this.disabled || e.which !== 1 && !isTouch) {
             return;
         }
 
@@ -219,37 +199,32 @@
         this.mouse_init_pos = this.get_mouse_pos(e);
         this.offsetY = this.mouse_init_pos.top - this.el_init_pos.top;
 
-        var d;
-        for (var i = 0; pointer_events[i]; i++) {
-            d = pointer_events[i];
-
-            self.$body.on(d.move, function(mme) {
-                var mouse_actual_pos = self.get_mouse_pos(mme);
-                var diff_x = Math.abs(
-                    mouse_actual_pos.left - self.mouse_init_pos.left);
-                var diff_y = Math.abs(
-                    mouse_actual_pos.top - self.mouse_init_pos.top);
-                if (!(diff_x > self.options.distance ||
-                    diff_y > self.options.distance)
+        this.$body.on(pointer_events.move, function(mme){
+            var mouse_actual_pos = self.get_mouse_pos(mme);
+            var diff_x = Math.abs(
+                mouse_actual_pos.left - self.mouse_init_pos.left);
+            var diff_y = Math.abs(
+                mouse_actual_pos.top - self.mouse_init_pos.top);
+            if (!(diff_x > self.options.distance ||
+                diff_y > self.options.distance)
                 ) {
-                    return false;
-                }
-
-                if (first) {
-                    first = false;
-                    self.on_dragstart.call(self, mme);
-                    return false;
-                }
-
-                if (self.is_dragging === true) {
-                    self.on_dragmove.call(self, mme);
-                }
-
                 return false;
-            });
-        }
+            }
 
-        return false;
+            if (first) {
+                first = false;
+                self.on_dragstart.call(self, mme);
+                return false;
+            }
+
+            if (self.is_dragging === true) {
+                self.on_dragmove.call(self, mme);
+            }
+
+            return false;
+        });
+
+        if (!isTouch) { return false; }
     };
 
 
@@ -273,7 +248,9 @@
         this.el_init_offset = this.$player.offset();
         this.player_width = this.$player.width();
         this.player_height = this.$player.height();
-        this.player_max_left = (this.$container.width() - this.player_width +
+
+        var container_width = this.options.container_width || this.$container.width();
+        this.player_max_left = (container_width - this.player_width +
             this.options.offset_left);
 
         if (this.options.start) {
@@ -353,6 +330,11 @@
 
     fn.destroy = function(){
         this.disable();
+
+        this.$container.off('.gridster-draggable');
+        this.$body.off('.gridster-draggable');
+        $(window).off('.gridster-draggable');
+
         $.removeData(this.$container, 'drag');
     };
 

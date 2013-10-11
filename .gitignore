@@ -9,3 +9,6 @@ demo/
 
 # pycahrm
 .idea
+libs/
+.idea
+.DS_Store

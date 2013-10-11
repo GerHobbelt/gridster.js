@@ -1,10 +1,715 @@
-/*
- * jquery.gridster
- * https://github.com/ducksboard/gridster.js
- *
- * Copyright (c) 2012 ducksboard
- * Licensed under the MIT licenses.
- */
+/*! gridster.js - v0.1.0 - 2013-06-14
+* http://gridster.net/
+* Copyright (c) 2013 ducksboard; Licensed MIT */
+
+;(function($, window, document, undefined){
+    /**
+    * Creates objects with coordinates (x1, y1, x2, y2, cx, cy, width, height)
+    * to simulate DOM elements on the screen.
+    * Coords is used by Gridster to create a faux grid with any DOM element can
+    * collide.
+    *
+    * @class Coords
+    * @param {HTMLElement|Object} obj The jQuery HTMLElement or a object with: left,
+    * top, width and height properties.
+    * @return {Object} Coords instance.
+    * @constructor
+    */
+    function Coords(obj) {
+        if (obj[0] && $.isPlainObject(obj[0])) {
+            this.data = obj[0];
+        }else {
+            this.el = obj;
+        }
+
+        this.isCoords = true;
+        this.coords = {};
+        this.init();
+        return this;
+    }
+
+
+    var fn = Coords.prototype;
+
+
+    fn.init = function(){
+        this.set();
+        this.original_coords = this.get();
+    };
+
+
+    fn.set = function(update, not_update_offsets) {
+        var el = this.el;
+
+        if (el && !update) {
+            this.data = el.offset();
+            this.data.width = el.width();
+            this.data.height = el.height();
+        }
+
+        if (el && update && !not_update_offsets) {
+            var offset = el.offset();
+            this.data.top = offset.top;
+            this.data.left = offset.left;
+        }
+
+        var d = this.data;
+
+        this.coords.x1 = d.left;
+        this.coords.y1 = d.top;
+        this.coords.x2 = d.left + d.width;
+        this.coords.y2 = d.top + d.height;
+        this.coords.cx = d.left + (d.width / 2);
+        this.coords.cy = d.top + (d.height / 2);
+        this.coords.width  = d.width;
+        this.coords.height = d.height;
+        this.coords.el  = el || false ;
+
+        return this;
+    };
+
+
+    fn.update = function(data){
+        if (!data && !this.el) {
+            return this;
+        }
+
+        if (data) {
+            var new_data = $.extend({}, this.data, data);
+            this.data = new_data;
+            return this.set(true, true);
+        }
+
+        this.set(true);
+        return this;
+    };
+
+
+    fn.get = function(){
+        return this.coords;
+    };
+
+
+    //jQuery adapter
+    $.fn.coords = function() {
+        if (this.data('coords') ) {
+            return this.data('coords');
+        }
+
+        var ins = new Coords(this, arguments[0]);
+        this.data('coords', ins);
+        return ins;
+    };
+
+}(jQuery, window, document));
+
+;(function($, window, document, undefined){
+
+    var defaults = {
+        colliders_context: document.body
+        // ,on_overlap: function(collider_data){},
+        // on_overlap_start : function(collider_data){},
+        // on_overlap_stop : function(collider_data){}
+    };
+
+
+    /**
+    * Detects collisions between a DOM element against other DOM elements or
+    * Coords objects.
+    *
+    * @class Collision
+    * @uses Coords
+    * @param {HTMLElement} el The jQuery wrapped HTMLElement.
+    * @param {HTMLElement|Array} colliders Can be a jQuery collection
+    *  of HTMLElements or an Array of Coords instances.
+    * @param {Object} [options] An Object with all options you want to
+    *        overwrite:
+    *   @param {Function} [options.on_overlap_start] Executes a function the first
+    *    time each `collider ` is overlapped.
+    *   @param {Function} [options.on_overlap_stop] Executes a function when a
+    *    `collider` is no longer collided.
+    *   @param {Function} [options.on_overlap] Executes a function when the
+    * mouse is moved during the collision.
+    * @return {Object} Collision instance.
+    * @constructor
+    */
+    function Collision(el, colliders, options) {
+        this.options = $.extend(defaults, options);
+        this.$element = el;
+        this.last_colliders = [];
+        this.last_colliders_coords = [];
+        if (typeof colliders === 'string' || colliders instanceof jQuery) {
+            this.$colliders = $(colliders,
+                 this.options.colliders_context).not(this.$element);
+        }else{
+            this.colliders = $(colliders);
+        }
+
+        this.init();
+    }
+
+
+    var fn = Collision.prototype;
+
+
+    fn.init = function() {
+        this.find_collisions();
+    };
+
+
+    fn.overlaps = function(a, b) {
+        var x = false;
+        var y = false;
+
+        if ((b.x1 >= a.x1 && b.x1 <= a.x2) ||
+            (b.x2 >= a.x1 && b.x2 <= a.x2) ||
+            (a.x1 >= b.x1 && a.x2 <= b.x2)
+        ) { x = true; }
+
+        if ((b.y1 >= a.y1 && b.y1 <= a.y2) ||
+            (b.y2 >= a.y1 && b.y2 <= a.y2) ||
+            (a.y1 >= b.y1 && a.y2 <= b.y2)
+        ) { y = true; }
+
+        return (x && y);
+    };
+
+
+    fn.detect_overlapping_region = function(a, b){
+        var regionX = '';
+        var regionY = '';
+
+        if (a.y1 > b.cy && a.y1 < b.y2) { regionX = 'N'; }
+        if (a.y2 > b.y1 && a.y2 < b.cy) { regionX = 'S'; }
+        if (a.x1 > b.cx && a.x1 < b.x2) { regionY = 'W'; }
+        if (a.x2 > b.x1 && a.x2 < b.cx) { regionY = 'E'; }
+
+        return (regionX + regionY) || 'C';
+    };
+
+
+    fn.calculate_overlapped_area_coords = function(a, b){
+        var x1 = Math.max(a.x1, b.x1);
+        var y1 = Math.max(a.y1, b.y1);
+        var x2 = Math.min(a.x2, b.x2);
+        var y2 = Math.min(a.y2, b.y2);
+
+        return $({
+            left: x1,
+            top: y1,
+             width : (x2 - x1),
+            height: (y2 - y1)
+          }).coords().get();
+    };
+
+
+    fn.calculate_overlapped_area = function(coords){
+        return (coords.width * coords.height);
+    };
+
+
+    fn.manage_colliders_start_stop = function(new_colliders_coords, start_callback, stop_callback){
+        var last = this.last_colliders_coords;
+
+        for (var i = 0, il = last.length; i < il; i++) {
+            if ($.inArray(last[i], new_colliders_coords) === -1) {
+                start_callback.call(this, last[i]);
+            }
+        }
+
+        for (var j = 0, jl = new_colliders_coords.length; j < jl; j++) {
+            if ($.inArray(new_colliders_coords[j], last) === -1) {
+                stop_callback.call(this, new_colliders_coords[j]);
+            }
+
+        }
+    };
+
+
+    fn.find_collisions = function(player_data_coords){
+        var self = this;
+        var colliders_coords = [];
+        var colliders_data = [];
+        var $colliders = (this.colliders || this.$colliders);
+        var count = $colliders.length;
+        var player_coords = self.$element.coords()
+                             .update(player_data_coords || false).get();
+
+        while(count--){
+          var $collider = self.$colliders ?
+                           $($colliders[count]) : $colliders[count];
+          var $collider_coords_ins = ($collider.isCoords) ?
+                  $collider : $collider.coords();
+          var collider_coords = $collider_coords_ins.get();
+          var overlaps = self.overlaps(player_coords, collider_coords);
+
+          if (!overlaps) {
+            continue;
+          }
+
+          var region = self.detect_overlapping_region(
+              player_coords, collider_coords);
+
+            //todo: make this an option
+            if (region === 'C'){
+                var area_coords = self.calculate_overlapped_area_coords(
+                    player_coords, collider_coords);
+                var area = self.calculate_overlapped_area(area_coords);
+                var collider_data = {
+                    area: area,
+                    area_coords : area_coords,
+                    region: region,
+                    coords: collider_coords,
+                    player_coords: player_coords,
+                    el: $collider
+                };
+
+                if (self.options.on_overlap) {
+                    self.options.on_overlap.call(this, collider_data);
+                }
+                colliders_coords.push($collider_coords_ins);
+                colliders_data.push(collider_data);
+            }
+        }
+
+        if (self.options.on_overlap_stop || self.options.on_overlap_start) {
+            this.manage_colliders_start_stop(colliders_coords,
+                self.options.on_overlap_start, self.options.on_overlap_stop);
+        }
+
+        this.last_colliders_coords = colliders_coords;
+
+        return colliders_data;
+    };
+
+
+    fn.get_closest_colliders = function(player_data_coords){
+        var colliders = this.find_collisions(player_data_coords);
+
+        colliders.sort(function(a, b) {
+            /* if colliders are being overlapped by the "C" (center) region,
+             * we have to set a lower index in the array to which they are placed
+             * above in the grid. */
+            if (a.region === 'C' && b.region === 'C') {
+                if (a.coords.y1 < b.coords.y1 || a.coords.x1 < b.coords.x1) {
+                    return - 1;
+                }else{
+                    return 1;
+                }
+            }
+
+            if (a.area < b.area) {
+                return 1;
+            }
+
+            return 1;
+        });
+        return colliders;
+    };
+
+
+    //jQuery adapter
+    $.fn.collision = function(collider, options) {
+          return new Collision( this, collider, options );
+    };
+
+
+}(jQuery, window, document));
+
+;(function(window, undefined) {
+    /* Debounce and throttle functions taken from underscore.js */
+    window.debounce = function(func, wait, immediate) {
+        var timeout;
+        return function() {
+          var context = this, args = arguments;
+          var later = function() {
+            timeout = null;
+            if (!immediate) func.apply(context, args);
+          };
+          if (immediate && !timeout) func.apply(context, args);
+          clearTimeout(timeout);
+          timeout = setTimeout(later, wait);
+        };
+    };
+
+
+    window.throttle = function(func, wait) {
+        var context, args, timeout, throttling, more, result;
+        var whenDone = debounce(
+            function(){ more = throttling = false; }, wait);
+        return function() {
+          context = this; args = arguments;
+          var later = function() {
+            timeout = null;
+            if (more) func.apply(context, args);
+            whenDone();
+          };
+          if (!timeout) timeout = setTimeout(later, wait);
+          if (throttling) {
+            more = true;
+          } else {
+            result = func.apply(context, args);
+          }
+          whenDone();
+          throttling = true;
+          return result;
+        };
+    };
+
+})(window);
+
+;(function($, window, document, undefined){
+
+    var defaults = {
+        items: '.gs_w',
+        distance: 1,
+        limit: true,
+        offset_left: 0,
+        autoscroll: true,
+        ignore_dragging: ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'],
+        handle: null,
+        container_width: 0  // 0 == auto
+        // drag: function(e){},
+        // start : function(e, ui){},
+        // stop : function(e){}
+    };
+
+    var $window = $(window);
+    var isTouch = !!('ontouchstart' in window);
+    var pointer_events = {
+        start: isTouch ? 'touchstart.gridster-draggable' : 'mousedown.gridster-draggable',
+        move: isTouch ? 'touchmove.gridster-draggable' : 'mousemove.gridster-draggable',
+        end: isTouch ? 'touchend.gridster-draggable' : 'mouseup.gridster-draggable'
+    };
+
+    /**
+    * Basic drag implementation for DOM elements inside a container.
+    * Provide start/stop/drag callbacks.
+    *
+    * @class Draggable
+    * @param {HTMLElement} el The HTMLelement that contains all the widgets
+    *  to be dragged.
+    * @param {Object} [options] An Object with all options you want to
+    *        overwrite:
+    *    @param {HTMLElement|String} [options.items] Define who will
+    *     be the draggable items. Can be a CSS Selector String or a
+    *     collection of HTMLElements.
+    *    @param {Number} [options.distance] Distance in pixels after mousedown
+    *     the mouse must move before dragging should start.
+    *    @param {Boolean} [options.limit] Constrains dragging to the width of
+    *     the container
+    *    @param {offset_left} [options.offset_left] Offset added to the item
+    *     that is being dragged.
+    *    @param {Number} [options.drag] Executes a callback when the mouse is
+    *     moved during the dragging.
+    *    @param {Number} [options.start] Executes a callback when the drag
+    *     starts.
+    *    @param {Number} [options.stop] Executes a callback when the drag stops.
+    * @return {Object} Returns `el`.
+    * @constructor
+    */
+    function Draggable(el, options) {
+      this.options = $.extend({}, defaults, options);
+      this.$body = $(document.body);
+      this.$container = $(el);
+      this.$dragitems = $(this.options.items, this.$container);
+      this.is_dragging = false;
+      this.player_min_left = 0 + this.options.offset_left;
+      this.init();
+    }
+
+    var fn = Draggable.prototype;
+
+    fn.init = function() {
+        this.calculate_positions();
+        this.$container.css('position', 'relative');
+        this.disabled = false;
+        this.events();
+
+        $(window).bind('resize.gridster-draggable',
+            throttle($.proxy(this.calculate_positions, this), 200));
+    };
+
+    fn.events = function() {
+        this.$container.on('selectstart.gridster-draggable',
+            $.proxy(this.on_select_start, this));
+
+        this.$container.on(pointer_events.start, this.options.items,
+            $.proxy(this.drag_handler, this));
+
+        this.$body.on(pointer_events.end, $.proxy(function(e) {
+            this.is_dragging = false;
+            if (this.disabled) { return; }
+            this.$body.off(pointer_events.move);
+            if (this.drag_start) {
+                this.on_dragstop(e);
+            }
+        }, this));
+    };
+
+    fn.get_actual_pos = function($el) {
+        var pos = $el.position();
+        return pos;
+    };
+
+
+    fn.get_mouse_pos = function(e) {
+        if (isTouch) {
+            var oe = e.originalEvent;
+            e = oe.touches.length ? oe.touches[0] : oe.changedTouches[0];
+        }
+
+        return {
+            left: e.clientX,
+            top: e.clientY
+        };
+    };
+
+
+    fn.get_offset = function(e) {
+        e.preventDefault();
+        var mouse_actual_pos = this.get_mouse_pos(e);
+        var diff_x = Math.round(
+            mouse_actual_pos.left - this.mouse_init_pos.left);
+        var diff_y = Math.round(mouse_actual_pos.top - this.mouse_init_pos.top);
+
+        var left = Math.round(this.el_init_offset.left + diff_x - this.baseX);
+        var top = Math.round(
+            this.el_init_offset.top + diff_y - this.baseY + this.scrollOffset);
+
+        if (this.options.limit) {
+            if (left > this.player_max_left) {
+                left = this.player_max_left;
+            }else if(left < this.player_min_left) {
+                left = this.player_min_left;
+            }
+        }
+
+        return {
+            left: left,
+            top: top,
+            mouse_left: mouse_actual_pos.left,
+            mouse_top: mouse_actual_pos.top
+        };
+    };
+
+
+    fn.manage_scroll = function(offset) {
+        /* scroll document */
+        var nextScrollTop;
+        var scrollTop = $window.scrollTop();
+        var min_window_y = scrollTop;
+        var max_window_y = min_window_y + this.window_height;
+
+        var mouse_down_zone = max_window_y - 50;
+        var mouse_up_zone = min_window_y + 50;
+
+        var abs_mouse_left = offset.mouse_left;
+        var abs_mouse_top = min_window_y + offset.mouse_top;
+
+        var max_player_y = (this.doc_height - this.window_height +
+            this.player_height);
+
+        if (abs_mouse_top >= mouse_down_zone) {
+            nextScrollTop = scrollTop + 30;
+            if (nextScrollTop < max_player_y) {
+                $window.scrollTop(nextScrollTop);
+                this.scrollOffset = this.scrollOffset + 30;
+            }
+        }
+
+        if (abs_mouse_top <= mouse_up_zone) {
+            nextScrollTop = scrollTop - 30;
+            if (nextScrollTop > 0) {
+                $window.scrollTop(nextScrollTop);
+                this.scrollOffset = this.scrollOffset - 30;
+            }
+        }
+    };
+
+
+    fn.calculate_positions = function(e) {
+        this.window_height = $window.height();
+    };
+
+
+    fn.drag_handler = function(e) {
+        var node = e.target.nodeName;
+        if (this.disabled || e.which !== 1 && !isTouch) {
+            return;
+        }
+
+        if (this.ignore_drag(e)) {
+            return;
+        }
+
+        var self = this;
+        var first = true;
+        this.$player = $(e.currentTarget);
+
+        this.el_init_pos = this.get_actual_pos(this.$player);
+        this.mouse_init_pos = this.get_mouse_pos(e);
+        this.offsetY = this.mouse_init_pos.top - this.el_init_pos.top;
+
+        this.$body.on(pointer_events.move, function(mme){
+            var mouse_actual_pos = self.get_mouse_pos(mme);
+            var diff_x = Math.abs(
+                mouse_actual_pos.left - self.mouse_init_pos.left);
+            var diff_y = Math.abs(
+                mouse_actual_pos.top - self.mouse_init_pos.top);
+            if (!(diff_x > self.options.distance ||
+                diff_y > self.options.distance)
+                ) {
+                return false;
+            }
+
+            if (first) {
+                first = false;
+                self.on_dragstart.call(self, mme);
+                return false;
+            }
+
+            if (self.is_dragging === true) {
+                self.on_dragmove.call(self, mme);
+            }
+
+            return false;
+        });
+
+        if (!isTouch) { return false; }
+    };
+
+
+    fn.on_dragstart = function(e) {
+        e.preventDefault();
+        this.drag_start = true;
+        this.is_dragging = true;
+        var offset = this.$container.offset();
+        this.baseX = Math.round(offset.left);
+        this.baseY = Math.round(offset.top);
+        this.doc_height = $(document).height();
+
+        if (this.options.helper === 'clone') {
+            this.$helper = this.$player.clone()
+                .appendTo(this.$container).addClass('helper');
+            this.helper = true;
+        }else{
+            this.helper = false;
+        }
+        this.scrollOffset = 0;
+        this.el_init_offset = this.$player.offset();
+        this.player_width = this.$player.width();
+        this.player_height = this.$player.height();
+
+        var container_width = this.options.container_width || this.$container.width();
+        this.player_max_left = (container_width - this.player_width +
+            this.options.offset_left);
+
+        if (this.options.start) {
+            this.options.start.call(this.$player, e, {
+                helper: this.helper ? this.$helper : this.$player
+            });
+        }
+        return false;
+    };
+
+
+    fn.on_dragmove = function(e) {
+        var offset = this.get_offset(e);
+
+        this.options.autoscroll && this.manage_scroll(offset);
+
+        (this.helper ? this.$helper : this.$player).css({
+            'position': 'absolute',
+            'left' : offset.left,
+            'top' : offset.top
+        });
+
+        var ui = {
+            'position': {
+                'left': offset.left,
+                'top': offset.top
+            }
+        };
+
+        if (this.options.drag) {
+            this.options.drag.call(this.$player, e, ui);
+        }
+        return false;
+    };
+
+
+    fn.on_dragstop = function(e) {
+        var offset = this.get_offset(e);
+        this.drag_start = false;
+
+        var ui = {
+            'position': {
+                'left': offset.left,
+                'top': offset.top
+            }
+        };
+
+        if (this.options.stop) {
+            this.options.stop.call(this.$player, e, ui);
+        }
+
+        if (this.helper) {
+            this.$helper.remove();
+        }
+
+        return false;
+    };
+
+    fn.on_select_start = function(e) {
+        if (this.disabled) { return; }
+
+        if (this.ignore_drag(e)) {
+            return;
+        }
+
+        return false;
+    };
+
+    fn.enable = function() {
+        this.disabled = false;
+    };
+
+    fn.disable = function() {
+        this.disabled = true;
+    };
+
+
+    fn.destroy = function(){
+        this.disable();
+
+        this.$container.off('.gridster-draggable');
+        this.$body.off('.gridster-draggable');
+        $(window).off('.gridster-draggable');
+
+        $.removeData(this.$container, 'drag');
+    };
+
+    fn.ignore_drag = function(event) {
+        if (this.options.handle) {
+            return !$(event.target).is(this.options.handle);
+        }
+
+        return $.inArray(event.target.nodeName, this.options.ignore_dragging) >= 0;
+    };
+
+    //jQuery adapter
+    $.fn.drag = function ( options ) {
+        return this.each(function () {
+            if (!$.data(this, 'drag')) {
+                $.data(this, 'drag', new Draggable( this, options ));
+            }
+        });
+    };
+
+
+}(jQuery, window, document));
+
 ;(function($, window, document, undefined) {
 
     var defaults = {
@@ -108,7 +813,6 @@
         this.generate_grid_and_stylesheet();
         this.get_widgets_from_DOM();
         this.set_dom_grid_height();
-        this.set_dom_grid_width();
         this.$wrapper.addClass('ready');
         this.draggable();
 
@@ -155,13 +859,10 @@
     *  the widget that was just created.
     */
     fn.add_widget = function(html, size_x, size_y, col, row) {
-        var pos,
-            $w;
-
+        var pos;
         size_x || (size_x = 1);
         size_y || (size_y = 1);
 
-        //if col and row weren't passed, render in the next available position
         if (!col & !row) {
             pos = this.next_position(size_x, size_y);
         }else{
@@ -173,14 +874,12 @@
             this.empty_cells(col, row, size_x, size_y);
         }
 
-        $w = ( html.jquery ) ? html : $( html );
-
-        $w.attr({
-            'data-col': pos.col,
-            'data-row': pos.row,
-            'data-sizex' : size_x,
-            'data-sizey' : size_y
-        }).addClass('gs_w').appendTo(this.$el).hide();
+        var $w = $(html).attr({
+                'data-col': pos.col,
+                'data-row': pos.row,
+                'data-sizex' : size_x,
+                'data-sizey' : size_y
+            }).addClass('gs_w').appendTo(this.$el).hide();
 
         this.$widgets = this.$widgets.add($w);
 
@@ -190,7 +889,6 @@
         //this.add_faux_cols(pos.size_x);
 
         this.set_dom_grid_height();
-        this.set_dom_grid_width();
 
         return $w.fadeIn();
     };
@@ -364,7 +1062,6 @@
         }, this));
 
         this.set_dom_grid_height();
-        this.set_dom_grid_width();
 
         return this;
     };
@@ -397,7 +1094,6 @@
         }, this));
 
         this.set_dom_grid_height();
-        this.set_dom_grid_width();
 
         return this;
     };
@@ -483,7 +1179,6 @@
             }
 
             this.set_dom_grid_height();
-            this.set_dom_grid_width();
 
             if (callback) {
                 callback.call(this, el);
@@ -833,7 +1528,6 @@
         this.cells_occupied_by_player = {};
 
         this.set_dom_grid_height();
-        this.set_dom_grid_width();
     };
 
 
@@ -1121,10 +1815,9 @@
                     // so we need to move widget down to a position that dont
                     // overlaps player
                     var y = (to_row + this.player_grid_data.size_y) - wgd.row;
-                    if (y > 0) {
-                        this.move_widget_down($w, y);
-                        this.set_placeholder(to_col, to_row);
-                    }
+
+                    this.move_widget_down($w, y);
+                    this.set_placeholder(to_col, to_row);
                 }
             }
         }, this));
@@ -1661,7 +2354,6 @@
         this.remove_from_gridmap(widget_grid_data);
         widget_grid_data.row = row;
         this.add_to_gridmap(widget_grid_data);
-        $widget.css('top', ''); //fix conflict with jquery-resizable
         $widget.attr('data-row', row);
         this.$changed = this.$changed.add($widget);
 
@@ -1713,7 +2405,6 @@
                 this.remove_from_gridmap(widget_grid_data);
                 widget_grid_data.row = next_row;
                 this.add_to_gridmap(widget_grid_data);
-                $widget.css('top', ''); //fix conflict with jquery-resizable
                 $widget.attr('data-row', widget_grid_data.row);
                 this.$changed = this.$changed.add($widget);
 
@@ -1766,7 +2457,6 @@
 
             widget_grid_data.row = next_row;
             this.update_widget_position(widget_grid_data, $widget);
-            $widget.css('top', ''); //fix conflict with jquery-resizable
             $widget.attr('data-row', widget_grid_data.row);
             this.$changed = this.$changed.add($widget);
 
@@ -2258,17 +2948,6 @@
     };
 
 
-    /** Set the current width of the parent grid
-    *
-    *   @method set_dom_grid_width
-    *   @return {Object} Returns the instance of the Gridster class.
-    */
-    fn.set_dom_grid_width = function() {
-      this.$el.css("width", (this.gridmap.length -1) * this.min_widget_width);
-      return this;
-    };
-
-
     /**
     * Set the current height of the parent grid.
     *
@@ -2622,5 +3301,171 @@
     };
 
     $.Gridster = fn;
+
+}(jQuery, window, document));
+
+;(function($, window, document, undefined) {
+
+    var fn = $.Gridster;
+
+    fn.widgets_in_col = function(col) {
+        if (!this.gridmap[col]) {
+            return false;
+        }
+
+        for (var i = this.gridmap[col].length - 1; i >= 0; i--) {
+            if (this.is_widget(col, i) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    fn.widgets_in_row = function(row) {
+        for (var i = this.gridmap.length; i >= 1; i--) {
+            if (this.is_widget(i, row) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+
+    fn.widgets_in_range = function(col1, row1, col2, row2) {
+        var valid_cols = [];
+        var valid_rows = [];
+        var $widgets = $([]);
+        var c, r, $w, wgd;
+
+        for (c = col2; c >= col1; c--) {
+            for (r = row2; r >= row1; r--) {
+                $w = this.is_widget(c, r);
+
+                if ($w !== false) {
+                    wgd = $w.data('coords').grid;
+                    if (wgd.col >= col1 && wgd.col <= col2 &&
+                        wgd.row >= row1 && wgd.row <= row2
+                       ) {
+                        $widgets = $widgets.add($w);
+                    }
+                }
+            }
+        }
+
+        return $widgets;
+    };
+
+
+    fn.get_bottom_most_occupied_cell = function() {
+        var row = 0;
+        var col = 0;
+        this.for_each_cell(function($el, c, r) {
+            if ($el && r > row) {
+                row = r;
+                col = c;
+            }
+        });
+
+        return {col: col, row: row};
+    };
+
+
+    fn.get_right_most_occupied_cell = function() {
+        var row = 0;
+        var col = 0;
+        this.for_each_cell(function($el, c, r) {
+            if ($el) {
+                row = r;
+                col = c;
+                return false;
+            }
+        });
+
+        return {col: col, row: row};
+    };
+
+
+    fn.for_each_cell = function(callback, gridmap) {
+        gridmap || (gridmap = this.gridmap);
+        var cols = gridmap.length;
+        var rows = gridmap[1].length;
+
+        cols_iter:
+        for (var c = cols - 1; c >= 1; c--) {
+            for (var r = rows - 1; r >= 1; r--) {
+                var $el = gridmap[c] && gridmap[c][r];
+                if (callback) {
+                    if (callback.call(this, $el, c, r) === false) {
+                        break cols_iter;
+                    } else { continue; }
+                }
+            }
+        }
+    };
+
+
+    fn.next_position_in_range = function(size_x, size_y, max_rows) {
+        size_x || (size_x = 1);
+        size_y || (size_y = 1);
+        var ga = this.gridmap;
+        var cols_l = ga.length;
+        var valid_pos = [];
+        var rows_l;
+
+        for (var c = 1; c < cols_l; c++) {
+            rows_l = max_rows || ga[c].length;
+            for (var r = 1; r <= rows_l; r++) {
+                var can_move_to = this.can_move_to({
+                    size_x: size_x,
+                    size_y: size_y
+                }, c, r, max_rows);
+
+                if (can_move_to) {
+                    valid_pos.push({
+                        col: c,
+                        row: r,
+                        size_y: size_y,
+                        size_x: size_x
+                    });
+                }
+            }
+        }
+
+        if (valid_pos.length >= 1) {
+            return this.sort_by_col_asc(valid_pos)[0];
+        }
+
+        return false;
+    };
+
+
+    fn.closest_to_right = function(col, row) {
+        if (!this.gridmap[col]) { return false; }
+        var cols_l = this.gridmap.length - 1;
+
+        for (var c = col; c <= cols_l; c++) {
+            if (this.gridmap[c][row]) {
+                return { col: c, row: row };
+            }
+        }
+
+        return false;
+    };
+
+
+    fn.closest_to_left = function(col, row) {
+        var cols_l = this.gridmap.length - 1;
+        if (!this.gridmap[col]) { return false; }
+
+        for (var c = col; c >= 1; c--) {
+            if (this.gridmap[c][row]) {
+                return { col: c, row: row };
+            }
+        }
+
+        return false;
+    };
 
 }(jQuery, window, document));
